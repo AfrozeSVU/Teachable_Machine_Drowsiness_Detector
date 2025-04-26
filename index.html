@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Focus Detector</title>
+  <style>
+    /* TEDx Style */
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #111;
+      color: #fff;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    h1 {
+      color: #e60012;
+      font-size: 3.5rem;
+      margin-top: 50px;
+      text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    #status {
+      font-size: 1.5rem;
+      color: #fff;
+      margin-top: 30px;
+    }
+
+    #focus-level {
+      font-size: 2rem;
+      color: #fff;
+      font-weight: bold;
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 10px;
+      display: inline-block;
+      margin-bottom: 30px;
+    }
+
+    .good-focus {
+      background-color: #4CAF50;
+    }
+
+    .poor-focus {
+      background-color: #f44336;
+    }
+
+    /* Button Styling */
+    .button-container {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-top: 40px;
+    }
+
+    button {
+      font-size: 1.2rem;
+      padding: 15px 30px;
+      background-color: #e60012;
+      color: #fff;
+      border: 2px solid #fff;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: transform 0.2s, background-color 0.3s ease-in-out;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    button:hover {
+      background-color: #bf0000;
+      transform: translateY(-4px);
+    }
+
+    button:active {
+      background-color: #f44336;
+      transform: translateY(2px);
+    }
+
+    #webcam-container {
+      margin-top: 30px;
+      border-radius: 10px;
+      box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    #label-container {
+      margin-top: 20px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #ddd;
+    }
+
+    #motivational-message {
+      margin-top: 40px;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #fff;
+      padding: 10px;
+      background-color: #111;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    .message {
+      margin-top: 20px;
+      font-size: 1.2rem;
+      color: #fff;
+    }
+
+    #motivational-message img {
+      width: 50px;
+      vertical-align: middle;
+      margin-right: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>Focus Detector</h1>
+  <div id="status">Click "Start" to begin focus detection.</div>
+
+  <div class="button-container">
+    <button type="button" onclick="init()">Start</button>
+    <button type="button" onclick="stop()">Stop</button>
+  </div>
+
+  <div id="webcam-container"></div>
+  <div id="label-container"></div>
+  <div id="focus-level"></div>
+
+  <div id="motivational-message"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+  <script type="text/javascript">
+    const URL = "./my_model/";
+
+    let model, webcam, labelContainer, maxPredictions;
+    let isRunning = false;
+
+    // Load the image model and setup the webcam
+    async function init() {
+      if (isRunning) return;
+
+      const modelURL = URL + "model.json";
+      const metadataURL = URL + "metadata.json";
+
+      model = await tmImage.load(modelURL, metadataURL);
+      maxPredictions = model.getTotalClasses();
+
+      const flip = true;
+      webcam = new tmImage.Webcam(200, 200, flip);
+      await webcam.setup();
+      await webcam.play();
+      window.requestAnimationFrame(loop);
+
+      document.getElementById("webcam-container").appendChild(webcam.canvas);
+      labelContainer = document.getElementById("label-container");
+
+      for (let i = 0; i < maxPredictions; i++) {
+        labelContainer.appendChild(document.createElement("div"));
+      }
+
+      document.getElementById("status").textContent = "Focus detection started!";
+      document.getElementById("focus-level").textContent = "Focus level: Monitoring...";
+      document.getElementById("motivational-message").textContent = "Stay focused and keep going!";
+      isRunning = true;
+    }
+
+    function stop() {
+      if (!isRunning) return;
+
+      webcam.stop();
+      document.getElementById("status").textContent = "Focus detection stopped.";
+      document.getElementById("focus-level").textContent = "Focus level: Stopped";
+      document.getElementById("motivational-message").textContent = "Good job, take a break!";
+      isRunning = false;
+    }
+
+    async function loop() {
+      webcam.update();
+      await predict();
+      window.requestAnimationFrame(loop);
+    }
+
+    async function predict() {
+      const prediction = await model.predict(webcam.canvas);
+      let highestProbability = 0;
+      let predictedClass = "";
+
+      for (let i = 0; i < maxPredictions; i++) {
+        const classPrediction = prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+        labelContainer.childNodes[i].innerHTML = classPrediction;
+
+        if (prediction[i].probability > highestProbability) {
+          highestProbability = prediction[i].probability;
+          predictedClass = prediction[i].className;
+        }
+      }
+
+      const focusLevelElement = document.getElementById("focus-level");
+      const motivationalMessage = document.getElementById("motivational-message");
+
+      // If the focus is close to 1 (Excellent), show a different message
+      if (highestProbability >= 0.95) {
+        focusLevelElement.textContent = `Focus level: Excellent (${(highestProbability * 100).toFixed(2)}%)`;
+        focusLevelElement.className = "good-focus";
+        motivationalMessage.textContent = "You're in the zone! Keep it up!";
+      } else {
+        focusLevelElement.textContent = `Focus level: Needs Improvement (${(highestProbability * 100).toFixed(2)}%)`;
+        focusLevelElement.className = "poor-focus";
+        motivationalMessage.textContent = "Try to focus more! You're almost there!";
+      }
+    }
+  </script>
+
+</body>
+
+</html>
