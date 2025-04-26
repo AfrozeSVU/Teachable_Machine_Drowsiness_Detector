@@ -207,15 +207,6 @@
       const motivationalMessage = document.getElementById("motivational-message");
 
       // If the focus is close to 1 (Excellent), show a different message
-      if (highestProbability >= 0.95) {
-        focusLevelElement.textContent = `Focus level: Excellent (${(highestProbability * 100).toFixed(2)}%)`;
-        focusLevelElement.className = "good-focus";
-        motivationalMessage.textContent = "You're in the zone! Keep it up!";
-      } else {
-        focusLevelElement.textContent = `Focus level: Needs Improvement (${(highestProbability * 100).toFixed(2)}%)`;
-        focusLevelElement.className = "poor-focus";
-        motivationalMessage.textContent = "Try to focus more! You're almost there!";
-      }
     }
   </script>
 
